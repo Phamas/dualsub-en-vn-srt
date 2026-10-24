@@ -1,5 +1,5 @@
 # dualsub-en-vn-srt
-Simple python script to translate EN SRT to include both English and Vietnamese sub.
+Simple python script to translate EN subtitles to include both English and Vietnamese subtitles.  Uses local translation.
 
 # Dependency
 pip install transformers torch sentencepiece
