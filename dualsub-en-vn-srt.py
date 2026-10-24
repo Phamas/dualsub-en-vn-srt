@@ -8,27 +8,48 @@ except ImportError:
     print("pip install transformers torch sentencepiece")
     exit(1)
 
+def read_file_robustly(file_path):
+    # Try different encodings. Subtitle files often use older Windows encodings instead of strict UTF-8.
+    encodings_to_try = ['utf-8-sig', 'utf-8', 'windows-1252', 'latin-1']
+    for enc in encodings_to_try:
+        try:
+            with open(file_path, 'r', encoding=enc) as f:
+                content = f.read()
+            print(f"Successfully read file using '{enc}' encoding.")
+            return content
+        except UnicodeDecodeError:
+            continue
+            
+    # If all else fails, read and ignore broken characters
+    print("Warning: Could not detect exact encoding, reading with error replacement.")
+    with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+        return f.read()
+
 def translate_srt_local(input_file, batch_size=16):
     if not os.path.exists(input_file):
         print(f"Error: Input file '{input_file}' not found.")
         return
 
-    # Automatically generate output filename
+    # Create 'translated' directory if it doesn't exist
+    output_dir = "translated"
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Automatically generate output filename in the 'translated' folder
     base_name = os.path.basename(input_file)
-    output_file = f"en-vn-{base_name}"
+    output_file = os.path.join(output_dir, f"en-vn-{base_name}")
 
     print(f"Loading local translation model (this will download ~300MB on the first run)...")
     model_name = "Helsinki-NLP/opus-mt-en-vi"
     tokenizer = MarianTokenizer.from_pretrained(model_name)
     model = MarianMTModel.from_pretrained(model_name)
     
-    # Use GPU hardware acceleration if available
+    # Use CPU since CUDA wasn't detected (or fallback to CUDA if available)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model.to(device)
     print(f"Model loaded successfully! Executing on: {device.upper()}")
 
-    with open(input_file, 'r', encoding='utf-8-sig') as f:
-        content = f.read()
+    # Robust file reading
+    content = read_file_robustly(input_file)
 
     blocks = content.strip().split('\n\n')
     print(f"Total subtitle blocks to translate: {len(blocks)}")
